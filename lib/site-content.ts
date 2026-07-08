@@ -158,36 +158,120 @@ export const footer = {
   ],
 };
 
+export type ProductVariant = {
+  /** Stable id used for React keys / aria wiring. */
+  id: string;
+  /** Short chip label, e.g. "Core Ultra 5". */
+  label: string;
+  /** One-line memory/storage summary shown inside the chip. */
+  config: string;
+  /** Optional highlight tag rendered on the selected chip. */
+  tag?: string;
+  /** Full numbered spec sheet for this configuration. */
+  specs: [string, string][];
+};
+
+export type ProductItem = {
+  brand: string;
+  model: string;
+  category: string;
+  accent: string;
+  image: { src: string; alt: string };
+  variants: ProductVariant[];
+  note: string;
+};
+
 export const products = {
   eyebrow: "The Catalogue",
   heading: "PRODUCTS",
   sub: "Commercial machines we provision at fleet scale — every unit sourced, imaged and delivered with white-glove care, PAN India.",
+  variantsLabel: "Configurations",
   items: [
     {
       brand: "DELL",
       model: "Latitude 5450",
       category: "Corporate Workspace Laptop",
       accent: "#2563eb",
-      specs: [
-        ["001", "Intel Core Ultra 7 165U · vPro Enterprise"],
-        ["002", "16 GB DDR5 5600 · 512 GB PCIe NVMe SSD"],
-        ["003", "35.5 cm (14\") FHD+ · Anti-Glare · ComfortView+"],
-        ["004", "Wi-Fi 6E · FHD IR Camera · Backlit Keyboard"],
-        ["005", "Fleet-Ready Imaging · 3-Yr ProSupport"],
+      image: {
+        src: "https://i.dell.com/is/image/DellContent/content/dam/ss2/product-images/dell-client-products/notebooks/latitude-notebooks/latitude-14-5450-laptop/mg/notebook-latitude-14-5450t-ir-gallery-20.psd?fmt=png-alpha&wid=1200",
+        alt: "Dell Latitude 5450 14-inch business laptop, open at an angle",
+      },
+      variants: [
+        {
+          id: "ultra5",
+          label: "Core Ultra 5",
+          config: "16 GB · 512 GB",
+          specs: [
+            ["001", "Intel Core Ultra 5 135U vPro · 12 Cores · up to 4.4 GHz"],
+            ["002", "16 GB DDR5 5600 MT/s · 512 GB PCIe NVMe Gen4 SSD"],
+            ["003", "35.5 cm (14\") FHD+ 1920×1200 · Anti-Glare · ComfortView+"],
+            ["004", "Wi-Fi 6E · Bluetooth 5.3 · FHD IR Camera · Backlit Keyboard"],
+            ["005", "Fleet-Ready Imaging · 3-Yr ProSupport"],
+          ],
+        },
+        {
+          id: "ultra7",
+          label: "Core Ultra 7",
+          config: "16 GB · 512 GB",
+          tag: "Fleet favourite",
+          specs: [
+            ["001", "Intel Core Ultra 7 165U vPro Enterprise · 12 Cores · up to 4.9 GHz"],
+            ["002", "16 GB DDR5 5600 MT/s · 512 GB PCIe NVMe Gen4 SSD"],
+            ["003", "35.5 cm (14\") FHD+ 1920×1200 · Anti-Glare · ComfortView+"],
+            ["004", "Wi-Fi 6E · Bluetooth 5.3 · FHD IR Camera · Backlit Keyboard"],
+            ["005", "Fleet-Ready Imaging · 3-Yr ProSupport"],
+          ],
+        },
+        {
+          id: "ultra7-32",
+          label: "Core Ultra 7",
+          config: "32 GB · 512 GB",
+          specs: [
+            ["001", "Intel Core Ultra 7 165U vPro Enterprise · 12 Cores · up to 4.9 GHz"],
+            ["002", "32 GB DDR5 5600 MT/s · 512 GB PCIe NVMe Gen4 SSD"],
+            ["003", "35.5 cm (14\") FHD+ 1920×1200 · Anti-Glare · ComfortView+"],
+            ["004", "Wi-Fi 6E · Bluetooth 5.3 · FHD IR Camera · Backlit Keyboard"],
+            ["005", "Fleet-Ready Imaging · 3-Yr ProSupport"],
+          ],
+        },
       ],
       note: "The enterprise fleet favourite — deployed across corporate India by the thousands.",
     },
     {
       brand: "ASUS",
       model: "ExpertBook B5",
-      category: "Business Ultrabook",
+      category: "Business Ultrabook · B5404",
       accent: "#d97706",
-      specs: [
-        ["001", "Intel Core i7 13th Gen · Iris Xe Graphics"],
-        ["002", "16 GB DDR5 · 1 TB PCIe 4.0 SSD"],
-        ["003", "39.6 cm (15.6\") FHD IPS · Anti-Glare"],
-        ["004", "MIL-STD 810H Durability · Smart-Card Ready"],
-        ["005", "Wi-Fi 6E · AI Noise Cancellation · TPM 2.0"],
+      image: {
+        src: "https://dlcdnwebimgs.asus.com/gain/ecf910e0-d9d4-4435-9f57-0ac5a77173be/w1200",
+        alt: "ASUS ExpertBook B5 (B5404) 14-inch business ultrabook",
+      },
+      variants: [
+        {
+          id: "i5",
+          label: "Core i5",
+          config: "16 GB · 512 GB",
+          specs: [
+            ["001", "Intel Core i5-1335U · 10 Cores / 12 Threads · up to 4.6 GHz"],
+            ["002", "16 GB DDR5 · 512 GB PCIe 4.0 SSD · Dual-SSD RAID Ready"],
+            ["003", "35.5 cm (14\") 16:10 WUXGA · Anti-Glare · 1.29 kg All-Metal"],
+            ["004", "MIL-STD 810H Durability · TPM 2.0 · Smart-Card Ready"],
+            ["005", "Wi-Fi 6E · Thunderbolt 4 · AI Noise Cancellation"],
+          ],
+        },
+        {
+          id: "i7",
+          label: "Core i7",
+          config: "16 GB · 1 TB",
+          tag: "Performance pick",
+          specs: [
+            ["001", "Intel Core i7-1355U · 10 Cores / 12 Threads · up to 5.0 GHz"],
+            ["002", "16 GB DDR5 · 1 TB PCIe 4.0 SSD · Dual-SSD RAID Ready"],
+            ["003", "35.5 cm (14\") 16:10 WUXGA · Anti-Glare · 1.29 kg All-Metal"],
+            ["004", "MIL-STD 810H Durability · TPM 2.0 · Smart-Card Ready"],
+            ["005", "Wi-Fi 6E · Thunderbolt 4 · AI Noise Cancellation"],
+          ],
+        },
       ],
       note: "Engineered endurance for the always-on corporate workday.",
     },
@@ -196,15 +280,39 @@ export const products = {
       model: "Precision 3591",
       category: "Mobile Workstation",
       accent: "#1e3a8a",
-      specs: [
-        ["001", "Intel Core Ultra 9 · NVIDIA RTX A1000"],
-        ["002", "32 GB DDR5 · 1 TB PCIe NVMe SSD"],
-        ["003", "39.6 cm (15.6\") FHD · 100% sRGB"],
-        ["004", "ISV-Certified · vPro Enterprise Manageability"],
-        ["005", "Thunderbolt 4 · 3-Yr ProSupport Plus"],
+      image: {
+        src: "https://i.dell.com/is/image/DellContent/content/dam/ss2/product-images/dell-client-products/workstations/mobile-workstations/precision/15-3591/media-gallery/workstation-precision-15-3591-silver-gallery-2.psd?fmt=png-alpha&wid=1200",
+        alt: "Dell Precision 3591 15.6-inch mobile workstation",
+      },
+      variants: [
+        {
+          id: "ultra7-rtx1000",
+          label: "Core Ultra 7",
+          config: "RTX 1000 Ada · 32 GB",
+          specs: [
+            ["001", "Intel Core Ultra 7 165H vPro Enterprise · 16 Cores · up to 5.0 GHz"],
+            ["002", "NVIDIA RTX 1000 Ada Generation · 6 GB GDDR6"],
+            ["003", "32 GB DDR5 5600 MT/s · 512 GB PCIe NVMe Gen4 SSD"],
+            ["004", "39.6 cm (15.6\") FHD · ISV-Certified · Thunderbolt 4"],
+            ["005", "Wi-Fi 6E · 3-Yr ProSupport Plus"],
+          ],
+        },
+        {
+          id: "ultra9-rtx2000",
+          label: "Core Ultra 9",
+          config: "RTX 2000 Ada · 32 GB",
+          tag: "Max performance",
+          specs: [
+            ["001", "Intel Core Ultra 9 185H vPro Enterprise · 16 Cores · up to 5.1 GHz"],
+            ["002", "NVIDIA RTX 2000 Ada Generation · 8 GB GDDR6"],
+            ["003", "32 GB DDR5 5600 MT/s · 1 TB PCIe NVMe Gen4 SSD"],
+            ["004", "39.6 cm (15.6\") FHD · ISV-Certified · Thunderbolt 4"],
+            ["005", "Wi-Fi 6E · 3-Yr ProSupport Plus"],
+          ],
+        },
       ],
       note: "Workstation-class muscle for CAD, analytics and design teams.",
     },
-  ],
+  ] satisfies ProductItem[],
   ctaLabel: "Enquire about this machine",
 };
