@@ -171,12 +171,31 @@ export type ProductVariant = {
   specs: [string, string][];
 };
 
+export type ProductScreen = {
+  /** Screen rect as % of the product image box (left/top/width/height). */
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
 export type ProductItem = {
   brand: string;
   model: string;
   category: string;
   accent: string;
-  image: { src: string; alt: string };
+  image: {
+    src: string;
+    alt: string;
+    /** Intrinsic width/height ratio — keeps the overlay aligned at every size. */
+    ratio: number;
+    /** Visual scale nudge so all three laptops read the same size. */
+    zoom?: number;
+  };
+  /** Video played inside the laptop's display (file lives in /public). */
+  video?: string;
+  /** Where the display sits within the photo — tune per image. */
+  screen: ProductScreen;
   variants: ProductVariant[];
   note: string;
 };
@@ -193,9 +212,12 @@ export const products = {
       category: "Corporate Workspace Laptop",
       accent: "#2563eb",
       image: {
-        src: "https://i.dell.com/is/image/DellContent/content/dam/ss2/product-images/dell-client-products/notebooks/latitude-notebooks/latitude-14-5450-laptop/mg/notebook-latitude-14-5450t-ir-gallery-20.psd?fmt=png-alpha&wid=1200",
-        alt: "Dell Latitude 5450 14-inch business laptop, open at an angle",
+        src: "https://i.dell.com/is/image/DellContent/content/dam/ss2/product-images/dell-client-products/notebooks/latitude-notebooks/latitude-14-5450-laptop/mg/notebook-latitude-14-5450t-ir-gallery-3.psd?fmt=png-alpha&wid=1200",
+        alt: "Dell Latitude 5450 14-inch business laptop, front view",
+        ratio: 4703 / 3709,
       },
+      video: "/videos/products/latitude-5450.mp4",
+      screen: { left: 8.5, top: 5, width: 83, height: 62 },
       variants: [
         {
           id: "ultra5",
@@ -245,7 +267,14 @@ export const products = {
       image: {
         src: "https://dlcdnwebimgs.asus.com/gain/ecf910e0-d9d4-4435-9f57-0ac5a77173be/w1200",
         alt: "ASUS ExpertBook B5 (B5404) 14-inch business ultrabook",
+        ratio: 1,
+        // The ASUS press render is a padded square, so its laptop reads
+        // far smaller than the tightly-cropped Dell shots. Scale it up so
+        // all three machines sit at the same physical size on the wall.
+        zoom: 1.62,
       },
+      video: "/videos/products/expertbook-b5.mp4",
+      screen: { left: 22, top: 12, width: 56, height: 48 },
       variants: [
         {
           id: "i5",
@@ -281,9 +310,12 @@ export const products = {
       category: "Mobile Workstation",
       accent: "#1e3a8a",
       image: {
-        src: "https://i.dell.com/is/image/DellContent/content/dam/ss2/product-images/dell-client-products/workstations/mobile-workstations/precision/15-3591/media-gallery/workstation-precision-15-3591-silver-gallery-2.psd?fmt=png-alpha&wid=1200",
-        alt: "Dell Precision 3591 15.6-inch mobile workstation",
+        src: "https://i.dell.com/is/image/DellContent/content/dam/ss2/product-images/dell-client-products/workstations/mobile-workstations/precision/15-3591/media-gallery/workstation-precision-15-3591-silver-gallery-4.psd?fmt=png-alpha&wid=1200",
+        alt: "Dell Precision 3591 15.6-inch mobile workstation, front view",
+        ratio: 4449 / 2639,
       },
+      video: "/videos/products/precision-3591.mp4",
+      screen: { left: 20, top: 8, width: 60, height: 57 },
       variants: [
         {
           id: "ultra7-rtx1000",

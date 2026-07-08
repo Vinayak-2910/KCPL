@@ -85,6 +85,9 @@ export function buildLaptopFlight(stage: HTMLElement): (() => void) | void {
   const sections = gsap.utils.toArray("[data-scene]", stage) as HTMLElement[];
   if (!sections.length) return;
 
+  // Assigned once the dive's pin-spacer exists; tears down its refresh hook.
+  let removeSpacerHarden: (() => void) | undefined;
+
   const screenOf = (id: string) =>
     rig.querySelector<SVGGElement>(`[data-screen="${id}"]`);
 
@@ -226,6 +229,24 @@ export function buildLaptopFlight(stage: HTMLElement): (() => void) | void {
       },
     });
 
+    // To pin #zoom, ScrollTrigger wraps it in a runtime `.pin-spacer` and
+    // COPIES #zoom's z-index (30) onto that wrapper. The wrapper is
+    // transparent but, sitting at z-30, it lands directly over the first
+    // catalogue row (pulled up beneath it by -100vh) and silently eats
+    // every click meant for the Dell Latitude's configuration chips —
+    // which is why only the first product feels "dead". The dive stage is
+    // purely visual, so make its spacer click-through on every refresh
+    // (the spacer is rebuilt whenever ScrollTrigger recalculates).
+    const hardenPinSpacer = () => {
+      const spacer = (dive.scrollTrigger as unknown as { spacer?: HTMLElement })
+        ?.spacer;
+      if (spacer) spacer.style.pointerEvents = "none";
+    };
+    hardenPinSpacer();
+    ScrollTrigger.addEventListener("refresh", hardenPinSpacer);
+    removeSpacerHarden = () =>
+      ScrollTrigger.removeEventListener("refresh", hardenPinSpacer);
+
     // Settle: damp the idle bob so the plunge is rock-steady.
     dive.fromTo(
       bob,
@@ -330,6 +351,7 @@ export function buildLaptopFlight(stage: HTMLElement): (() => void) | void {
 
   return () => {
     ScrollTrigger.removeEventListener("refresh", fitMini);
+    removeSpacerHarden?.();
     if (bobTick) gsap.ticker.remove(bobTick);
   };
 }

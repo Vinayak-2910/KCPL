@@ -8,13 +8,16 @@
  *
  * Desktop-only: on mobile and reduced-motion this stage is skipped
  * entirely (see globals.css).
+ *
+ * Purely visual — it must never intercept the pointer, or it eats
+ * clicks meant for the first catalogue row sitting underneath it.
  */
 export default function ZoomPortal() {
   return (
     <section
       id="zoom"
       data-scene
-      className="relative z-30 hidden h-screen items-end justify-center overflow-hidden bg-white lg:flex"
+      className="pointer-events-none relative z-30 hidden h-screen select-none items-end justify-center overflow-hidden bg-white lg:flex"
     >
       <p
         data-zoom-cue

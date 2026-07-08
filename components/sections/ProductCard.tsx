@@ -4,6 +4,96 @@ import { useState } from "react";
 import Image from "next/image";
 import type { ProductItem } from "@/lib/site-content";
 
+/** Outer media box ratio — every product renders inside the same 4:3 stage. */
+const STAGE_RATIO = 4 / 3;
+
+/**
+ * The laptop photo with a video playing inside its display.
+ *
+ * The photo sits in an inner box that matches its intrinsic aspect
+ * ratio exactly, so the screen rect (percentages in site-content.ts)
+ * stays glued to the display at every viewport size. The video panel
+ * is invisible until the file actually plays — before the videos are
+ * dropped into /public/videos/products/ the photo looks untouched.
+ */
+function ProductMedia({ product }: { product: ProductItem }) {
+  const [playing, setPlaying] = useState(false);
+  const { image, screen, video } = product;
+
+  // Width of the inner box (in % of the 4:3 stage) so the image is as
+  // large as possible without overflowing — then nudged by `zoom` so
+  // padded press shots (like the square ASUS render) read the same
+  // physical size as the tightly-cropped Dell ones.
+  const innerWidth = Math.min(100, image.ratio * (100 / STAGE_RATIO));
+
+  return (
+    // Decorative only — never let the (over-scaled) photo box or its video
+    // panel intercept clicks meant for the configuration chips beside it.
+    <div
+      className="pointer-events-none relative flex w-full items-center justify-center overflow-visible"
+      style={{ aspectRatio: String(STAGE_RATIO) }}
+    >
+      <div
+        className="relative"
+        style={{
+          width: `${innerWidth}%`,
+          aspectRatio: String(image.ratio),
+          transform: image.zoom ? `scale(${image.zoom})` : undefined,
+        }}
+      >
+        <Image
+          src={image.src}
+          alt={image.alt}
+          fill
+          sizes="(min-width: 1024px) 45vw, 90vw"
+          className="pointer-events-none object-contain drop-shadow-[0_30px_60px_rgba(15,23,42,0.16)]"
+        />
+
+        {video ? (
+          // The lit display. Sits ON the laptop photo, filling the exact
+          // screen cut-out so the PNG's bezel frames it — the panel reads
+          // as if the machine were switched on. Percentage geometry keeps
+          // it glued to the display at every viewport, so it stays
+          // perfectly framed on mobile too.
+          <div
+            className={`absolute overflow-hidden bg-slate-950 transition-opacity duration-700 ${
+              playing ? "opacity-100" : "opacity-0"
+            }`}
+            style={{
+              left: `${screen.left}%`,
+              top: `${screen.top}%`,
+              width: `${screen.width}%`,
+              height: `${screen.height}%`,
+              borderRadius: "1.5% / 2.5%",
+            }}
+            aria-hidden="true"
+          >
+            <video
+              src={video}
+              className="absolute inset-0 h-full w-full object-cover"
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="auto"
+              onPlaying={() => setPlaying(true)}
+              onCanPlay={(e) => {
+                // Some mobile browsers need an explicit nudge to autoplay.
+                const v = e.currentTarget;
+                if (v.paused) v.play().catch(() => {});
+              }}
+            />
+            {/* Diagonal glass glare + soft edge vignette so the video melts
+                into the panel instead of looking pasted on top. */}
+            <div className="absolute inset-0 bg-gradient-to-br from-white/12 via-transparent to-black/10" />
+            <div className="absolute inset-0 shadow-[inset_0_0_14px_rgba(0,0,0,0.45)]" />
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 /**
  * One catalogue row — real product photography on one side, live spec
  * sheet on the other, with a configuration switcher so a single model
@@ -141,15 +231,7 @@ export default function ProductCard({
       </div>
 
       <div className={flipped ? "lg:order-1" : ""}>
-        <div className="relative aspect-[4/3] w-full">
-          <Image
-            src={product.image.src}
-            alt={product.image.alt}
-            fill
-            sizes="(min-width: 1024px) 45vw, 90vw"
-            className="object-contain drop-shadow-[0_30px_60px_rgba(15,23,42,0.16)]"
-          />
-        </div>
+        <ProductMedia product={product} />
       </div>
     </article>
   );

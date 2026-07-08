@@ -103,3 +103,17 @@ body {
     margin-top: 0 !important;
   }
 }
+
+/* When ScrollTrigger pins the dive stage it wraps #zoom in a runtime
+   `.pin-spacer` div. That wrapper sits directly over the first catalogue
+   row (pulled up under it by -100vh), and — unlike #zoom itself — it is
+   NOT pointer-events-none, so it silently swallows every click meant for
+   the Dell Latitude's configuration chips. The dive apparatus is purely
+   visual, so make the whole thing transparent to the pointer. */
+.pin-spacer {
+  pointer-events: none;
+}
+/* ...but the real catalogue beneath must stay fully interactive. */
+#products {
+  pointer-events: auto;
+}
