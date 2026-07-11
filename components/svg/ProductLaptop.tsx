@@ -17,7 +17,7 @@ export default function ProductLaptop({
   brand,
   model,
   accent = "#2563eb",
-  className = "w-full h-auto",
+  className = "w-full h-auto select-none",
 }: ProductLaptopProps) {
   const lidId = `${idPrefix}-lid`;
   const deckId = `${idPrefix}-deck`;

@@ -15,20 +15,22 @@ import Products from "@/components/sections/Products";
 export default function Home() {
   return (
     <ScrollExperience>
-      <Navbar />
-      <main>
-        <Hero />
-        <About />
-        <Stats />
-        <Partners />
-        <Solutions />
-        <Process />
-        <WhyUs />
-        <CtaBanner />
-        <ZoomPortal />
-        <Products />
+      <main className="select-none">
+        <Navbar />
+        <main>
+          <Hero />
+          <About />
+          <Stats />
+          <Partners />
+          <Solutions />
+          <Process />
+          <WhyUs />
+          <CtaBanner />
+          <ZoomPortal />
+          <Products />
+        </main>
+        <Footer />
       </main>
-      <Footer />
     </ScrollExperience>
   );
 }
