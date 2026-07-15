@@ -21,6 +21,22 @@ export const hero = {
   secondaryCta: "Start an Enquiry",
 };
 
+/**
+ * The scroll-scrubbed cinematic hero film.
+ * Files live in /public/videos/hero — see the README there.
+ */
+export const heroVideo = {
+  /** Scrub-optimised film (H.264, dense keyframes, silent). */
+  src: "/videos/hero/hero-scrub.mp4",
+  /** First frame, extracted from the film — shown before load / reduced motion. */
+  poster: "/videos/hero/hero-poster.jpg",
+  /** Caption while the machine hangs in exploded view. */
+  midline: "Engineered to the last layer.",
+  midSub: "The machines we provision are chosen for what's inside.",
+  /** Shown as the display's white glow hands the page over to About. */
+  endLine: "Built on precision. Delivered with care.",
+};
+
 export const about = {
   eyebrow: "Who We Are",
   heading: "A legacy of trust, engineered since 2000.",

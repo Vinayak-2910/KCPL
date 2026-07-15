@@ -76,15 +76,64 @@ body {
   );
 }
 
-/* Navbar state toggled by ScrollTrigger */
+/* Navbar state toggled by ScrollTrigger. Links + wordmark transition
+   their colour too, so the chrome re-tunes itself for legibility as the
+   bar shifts between transparent (over the dark film) and grayish. */
 #site-nav {
   transition:
     box-shadow 0.35s ease,
-    background-color 0.35s ease;
+    background-color 0.35s ease,
+    backdrop-filter 0.35s ease;
 }
+#site-nav nav,
+#site-nav ul,
+#site-nav ul a,
+#site-nav svg text {
+  transition: color 0.35s ease, fill 0.35s ease;
+}
+
+/* Past the hero: a soft grayish frosted bar. Links + wordmark darken
+   automatically so they read cleanly against the light surface. */
 #site-nav.nav-scrolled {
-  background: rgba(255, 255, 255, 0.85);
-  box-shadow: 0 8px 30px -12px rgba(15, 23, 42, 0.18);
+  background: rgba(226, 230, 237, 0.82);
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+  box-shadow: 0 8px 30px -12px rgba(15, 23, 42, 0.25);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+#site-nav.nav-scrolled ul {
+  color: #334155;
+}
+#site-nav.nav-scrolled ul a:hover {
+  color: #1d4ed8;
+}
+#site-nav.nav-scrolled svg text {
+  fill: #0f172a;
+}
+#site-nav.nav-scrolled svg text + text {
+  fill: #475569;
+}
+
+/* While the scrub-video hero's dark studio fills the viewport the nav
+   rides light-on-dark: transparent bar, pale links, inverted wordmark.
+   Toggled by a ScrollTrigger in Hero.tsx. Declared AFTER .nav-scrolled
+   so it wins while both classes are present; once the film whites out
+   the class drops and .nav-scrolled's frosted bar takes back over. */
+#site-nav.nav-on-dark {
+  background: transparent;
+  box-shadow: none;
+}
+#site-nav.nav-on-dark ul {
+  color: #cbd5e1;
+}
+#site-nav.nav-on-dark ul a:hover {
+  color: #ffffff;
+}
+#site-nav.nav-on-dark svg text {
+  fill: #f8fafc;
+}
+#site-nav.nav-on-dark svg text + text {
+  fill: #94a3b8;
 }
 
 ::selection {

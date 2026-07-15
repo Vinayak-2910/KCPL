@@ -29,7 +29,8 @@ export type LaptopPose = {
 };
 
 export const LAPTOP_POSES: Record<string, LaptopPose> = {
-  hero: { xvw: 23, yvh: 5, rotation: -6, rotationY: -16, scale: 1.05 },
+  /** Opening pose — the cinematic video hero owns the viewport above,
+   *  so the rig makes its entrance at About. */
   about: { xvw: -27, yvh: 2, rotation: 5, rotationY: 18, scale: 0.88 },
   stats: { xvw: 0, yvh: -27, rotation: 0, rotationY: 0, scale: 0.6 },
   partners: { xvw: 26, yvh: 0, rotation: 4, rotationY: -14, scale: 0.92 },
@@ -127,7 +128,20 @@ export function buildLaptopFlight(stage: HTMLElement): (() => void) | void {
   // damp it deterministically under scrub (a plain yoyo tween can't be).
   const bob = { amp: 0 };
   let bobTick: (() => void) | null = null;
+  const startBob = () => {
+    if (bobTick) return;
+    gsap.to(bob, { amp: 14, duration: 1.6, ease: "power1.inOut" });
+    bobTick = () => {
+      gsap.set(float, {
+        y: bob.amp * Math.sin(gsap.ticker.time * 2.2),
+      });
+    };
+    gsap.ticker.add(bobTick);
+  };
 
+  // The scrub-video hero owns the viewport at load, so the rig stays
+  // out of frame until the first posed section (About) scrolls into
+  // reach — and bows back out if the visitor returns to the film.
   gsap.fromTo(
     entrance,
     { autoAlpha: 0, y: 90 },
@@ -135,17 +149,13 @@ export function buildLaptopFlight(stage: HTMLElement): (() => void) | void {
       autoAlpha: 1,
       y: 0,
       duration: 1.2,
-      delay: 0.15,
       ease: "power3.out",
-      onComplete: () => {
-        gsap.to(bob, { amp: 14, duration: 1.6, ease: "power1.inOut" });
-        bobTick = () => {
-          gsap.set(float, {
-            y: bob.amp * Math.sin(gsap.ticker.time * 2.2),
-          });
-        };
-        gsap.ticker.add(bobTick);
+      scrollTrigger: {
+        trigger: sections[0],
+        start: "top 80%",
+        toggleActions: "play none none reverse",
       },
+      onComplete: startBob,
     }
   );
 
