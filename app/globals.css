@@ -1,0 +1,178 @@
+@import "tailwindcss";
+
+@theme {
+  /* Brand - corporate blue */
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-200: #bfdbfe;
+  --color-brand-300: #93c5fd;
+  --color-brand-400: #60a5fa;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #2563eb;
+  --color-brand-700: #1d4ed8;
+  --color-brand-800: #1e40af;
+  --color-brand-900: #1e3a8a;
+  --color-brand-950: #172554;
+
+  /* Accent - warm amber */
+  --color-accent-100: #fef3c7;
+  --color-accent-200: #fde68a;
+  --color-accent-300: #fcd34d;
+  --color-accent-400: #fbbf24;
+  --color-accent-500: #f59e0b;
+  --color-accent-600: #d97706;
+
+  /* Surfaces - a two-tier warm-gray (taupe) system.
+     `paper` is the page canvas: a warm, desaturated stone rather than
+     white, which reads as printed stock instead of a blank screen.
+     `surface` is the raised tier (sections, cards, the laptop display)
+     and sits a few steps lighter in the same warm family, so panels
+     lift off the canvas without either one going pure white.
+     Note both are dark enough that cool `slate-100/200` hairlines
+     invert against them - borders use the warmer `stone` ramp. */
+  --color-paper: #d5d1c7;
+  --color-surface: #ece9e3;
+  --color-ink: #0f172a;
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-display: var(--font-space-grotesk);
+  --font-mono: var(--font-geist-mono);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  overflow-x: clip;
+}
+
+/* Frosted-glass surface */
+.glass {
+  background: rgba(236, 233, 227, 0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+/* Dotted engineering-grid backdrop */
+.dot-grid {
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    rgba(37, 99, 235, 0.14) 1px,
+    transparent 0
+  );
+  background-size: 26px 26px;
+}
+
+/* Soft radial glow orbs */
+.glow-brand {
+  background: radial-gradient(
+    circle,
+    rgba(59, 130, 246, 0.22) 0%,
+    transparent 65%
+  );
+}
+.glow-accent {
+  background: radial-gradient(
+    circle,
+    rgba(245, 158, 11, 0.2) 0%,
+    transparent 65%
+  );
+}
+
+/* Navbar state toggled by ScrollTrigger. Links + wordmark transition
+   their colour too, so the chrome re-tunes itself for legibility as the
+   bar shifts between transparent (over the dark film) and grayish. */
+#site-nav {
+  transition:
+    box-shadow 0.35s ease,
+    background-color 0.35s ease,
+    backdrop-filter 0.35s ease;
+}
+#site-nav nav,
+#site-nav ul,
+#site-nav ul a,
+#site-nav svg text {
+  transition:
+    color 0.35s ease,
+    fill 0.35s ease;
+}
+
+/* Past the hero: a soft grayish frosted bar. Links + wordmark darken
+   automatically so they read cleanly against the light surface. */
+#site-nav.nav-scrolled {
+  background: rgba(213, 209, 199, 0.85);
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+  box-shadow: 0 8px 30px -12px rgba(15, 23, 42, 0.25);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+#site-nav.nav-scrolled ul {
+  color: #334155;
+}
+#site-nav.nav-scrolled ul a:hover {
+  color: #1d4ed8;
+}
+#site-nav.nav-scrolled svg text {
+  fill: #0f172a;
+}
+#site-nav.nav-scrolled svg text + text {
+  fill: #475569;
+}
+
+/* While the scrub-video hero's dark studio fills the viewport the nav
+   rides light-on-dark: transparent bar, pale links, inverted wordmark.
+   Toggled by a ScrollTrigger in Hero.tsx. Declared AFTER .nav-scrolled
+   so it wins while both classes are present; once the film whites out
+   the class drops and .nav-scrolled's frosted bar takes back over. */
+#site-nav.nav-on-dark {
+  background: transparent;
+  box-shadow: none;
+}
+#site-nav.nav-on-dark ul {
+  color: #cbd5e1;
+}
+#site-nav.nav-on-dark ul a:hover {
+  color: #ffffff;
+}
+#site-nav.nav-on-dark svg text {
+  fill: #f8fafc;
+}
+#site-nav.nav-on-dark svg text + text {
+  fill: #94a3b8;
+}
+
+::selection {
+  background: var(--color-accent-200);
+  color: var(--color-ink);
+}
+
+/* The catalogue overlaps the pinned dive stage by one viewport
+   (see Products.tsx / ZoomPortal.tsx). Neutralise both when the
+   scripted dive can't run. */
+@media (prefers-reduced-motion: reduce) {
+  #zoom {
+    display: none;
+  }
+  #products {
+    margin-top: 0 !important;
+  }
+}
+
+/* When ScrollTrigger pins the dive stage it wraps #zoom in a runtime
+   `.pin-spacer` div. That wrapper sits directly over the first catalogue
+   row (pulled up under it by -100vh), and - unlike #zoom itself - it is
+   NOT pointer-events-none, so it silently swallows every click meant for
+   the Dell Latitude's configuration chips. The dive apparatus is purely
+   visual, so make the whole thing transparent to the pointer. */
+.pin-spacer {
+  pointer-events: none;
+}
+/* ...but the real catalogue beneath must stay fully interactive. */
+#products {
+  pointer-events: auto;
+}
