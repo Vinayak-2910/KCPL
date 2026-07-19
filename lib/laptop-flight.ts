@@ -1,40 +1,39 @@
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { laptopController } from "@/lib/laptop-controller";
+import type { SceneId } from "@/lib/screen-scenes";
 
 /**
- * Flight plan for the travelling laptop.
+ * Flight plan for the travelling 3D laptop.
  *
  * Each homepage section (keyed by its `id`) owns a pose. Between
- * consecutive sections a scrubbed timeline glides the laptop from
- * pose to pose and crossfades the matching `[data-screen]` scene.
+ * consecutive sections a scrubbed timeline glides the laptop from pose to
+ * pose (translate / 2D tilt / scale via CSS on the rig) while the model's
+ * 3D swivel and its on-screen scene are driven separately, straight from
+ * scroll position (see `driveScreen` below).
  *
- * The laptop enters showing the KOPAL splash; an intro crossfade then
- * hands that splash off to the first posed scene so every scene
- * *replaces* the previous one rather than stacking over the splash.
+ * Why the screen is driven from raw scroll instead of per-transition
+ * tweens: the old SVG crossfaded scenes with independent fromTo opacity
+ * tweens, so a fast scroll that skipped a transition could leave a scene
+ * stuck half-lit or never shown. Here the visible scene + swivel are a
+ * pure function of the current scroll position, recomputed every update and
+ * fully repainted each time — nothing to skip, nothing to leave stale.
  *
- * The finale: after the CTA section the laptop descends and parks
- * dead-centre (#zoom), its display already playing a live miniature of
- * the real catalogue ([data-laptop-mini]). A pinned timeline then grows
- * it until the screen *is* the viewport, at which point the miniature
- * reads 1:1 and dissolves into the real #products section waiting
- * exactly beneath. You are inside the machine.
+ * The finale is unchanged in spirit: after CTA the laptop descends to dead
+ * centre, its screen fading to the surface colour, and a live DOM miniature
+ * of the catalogue ([data-laptop-mini]) — pinned to the *measured* 3D
+ * screen rect — grows until it is the viewport and hands off to #products.
  */
 
 export type LaptopPose = {
-  /** Horizontal offset from viewport centre, in vw */
   xvw: number;
-  /** Vertical offset from viewport centre, in vh */
   yvh: number;
-  /** 2D rotation, degrees */
   rotation: number;
-  /** 3D swivel, degrees */
   rotationY: number;
   scale: number;
 };
 
 export const LAPTOP_POSES: Record<string, LaptopPose> = {
-  /** Opening pose - the cinematic video hero owns the viewport above,
-   *  so the rig makes its entrance at About. */
   about: { xvw: -27, yvh: 2, rotation: 5, rotationY: 18, scale: 0.88 },
   stats: { xvw: 0, yvh: -27, rotation: 0, rotationY: 0, scale: 0.6 },
   partners: { xvw: 26, yvh: 0, rotation: 4, rotationY: -14, scale: 0.92 },
@@ -42,13 +41,13 @@ export const LAPTOP_POSES: Record<string, LaptopPose> = {
   process: { xvw: 25, yvh: 6, rotation: 8, rotationY: -12, scale: 0.8 },
   "why-us": { xvw: -25, yvh: 0, rotation: -4, rotationY: 14, scale: 0.95 },
   cta: { xvw: 0, yvh: -24, rotation: 0, rotationY: 0, scale: 0.66 },
-  /** Final stop - descended to dead centre, facing the visitor. */
   zoom: { xvw: 0, yvh: 0, rotation: 0, rotationY: 0, scale: 1.3 },
 };
 
-/** Display rect of the laptop model, as fractions of its 560×400 box. */
-const SCREEN = {
+/** Fallback display rect (SVG-era) until the 3D screen rect is measured. */
+const SCREEN_FALLBACK = {
   top: 34 / 400,
+  left: 94 / 560,
   width: 372 / 560,
   height: 222 / 400,
 };
@@ -57,102 +56,103 @@ type PoseTweenVars = {
   x: () => number;
   y: () => number;
   rotation: number;
-  rotationY: number;
   scale: number;
 };
 
-/** Convert a pose into GSAP vars with viewport-relative, refresh-safe x/y. */
+/** CSS vars for the rig — 3D swivel (rotationY) is handled by the model. */
 function poseVars(pose: LaptopPose): PoseTweenVars {
   return {
     x: () => (window.innerWidth * pose.xvw) / 100,
     y: () => (window.innerHeight * pose.yvh) / 100,
     rotation: pose.rotation,
-    rotationY: pose.rotationY,
     scale: pose.scale,
   };
 }
 
-/**
- * Builds the whole flight. Returns a cleanup function (ticker +
- * refresh listeners) for the owning matchMedia context.
- */
+/** GSAP-style quad in-out, to match the pose glides' power1.inOut. */
+function easeInOut(p: number): number {
+  return p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+}
+
+const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+
 export function buildLaptopFlight(stage: HTMLElement): (() => void) | void {
   const rig = stage.querySelector<HTMLElement>("[data-laptop-rig]");
-  const float = stage.querySelector<HTMLElement>("[data-laptop-float]");
   const entrance = stage.querySelector<HTMLElement>("[data-laptop-entrance]");
-  if (!rig || !float || !entrance) return;
+  if (!rig || !entrance) return;
 
-  // The live catalogue miniature ([data-laptop-mini]) and its inverse-
-  // scaled inner wrapper ([data-laptop-mini-scaler]).
   const mini = rig.querySelector<HTMLElement>("[data-laptop-mini]");
-  const miniScaler = rig.querySelector<HTMLElement>(
-    "[data-laptop-mini-scaler]"
-  );
+  const miniScaler = rig.querySelector<HTMLElement>("[data-laptop-mini-scaler]");
 
   const sections = gsap.utils.toArray("[data-scene]", stage) as HTMLElement[];
   if (!sections.length) return;
+  const sceneIds = sections.map((s) => s.id as SceneId);
 
-  // Assigned once the dive's pin-spacer exists; tears down its refresh hook.
   let removeSpacerHarden: (() => void) | undefined;
 
-  const screenOf = (id: string) =>
-    rig.querySelector<SVGGElement>(`[data-screen="${id}"]`);
+  /* ---- Live screen rect (measured from the 3D model) ---------------- */
 
-  /* ---- Dive geometry ------------------------------------------------ */
+  let screenRect = { ...SCREEN_FALLBACK };
+  const applyScreenRect = () => {
+    const r = laptopController.getScreenRect();
+    if (r) screenRect = r;
+    if (mini) {
+      gsap.set(mini, {
+        left: `${screenRect.left * 100}%`,
+        top: `${screenRect.top * 100}%`,
+        width: `${screenRect.width * 100}%`,
+        height: `${screenRect.height * 100}%`,
+      });
+    }
+  };
+  applyScreenRect();
+  ScrollTrigger.addEventListener("refresh", applyScreenRect);
 
-  /** Scale at which the display rect covers the whole viewport. */
+  // Re-align to the measured 3D screen rect the moment the model is ready.
+  // Fires on first load and on every client navigation back to the homepage.
+  // The model is browser-cached on a return visit, so it may become ready
+  // before or after this runs — onReady covers both (it fires immediately if
+  // readiness already happened). A next-frame refresh settles positions
+  // after the browser restores scroll on a back-button navigation, and a
+  // pageshow refresh covers bfcache restores.
+  const offReady = laptopController.onReady(() => {
+    applyScreenRect();
+    ScrollTrigger.refresh();
+  });
+  const settleRaf = requestAnimationFrame(() => ScrollTrigger.refresh());
+  const onPageShow = () => ScrollTrigger.refresh();
+  window.addEventListener("pageshow", onPageShow);
+
+  /* ---- Dive geometry (uses the live screen rect) -------------------- */
+
   const endScale = () =>
     Math.max(
-      window.innerWidth / (rig.offsetWidth * SCREEN.width),
-      window.innerHeight / (rig.offsetHeight * SCREEN.height)
+      window.innerWidth / (rig.offsetWidth * screenRect.width),
+      window.innerHeight / (rig.offsetHeight * screenRect.height),
     );
 
-  /** Rig y-offset that puts the display's top edge at the viewport top. */
   const endY = () =>
-    (0.5 - SCREEN.top) * rig.offsetHeight * endScale() -
+    (0.5 - screenRect.top) * rig.offsetHeight * endScale() -
     window.innerHeight / 2;
 
-  /**
-   * Keep the catalogue miniature at the inverse of the dive's end scale
-   * so that when the rig grows to `endScale` the catalogue inside reads
-   * at a true 1:1 - a pixel-perfect match for the real #products section
-   * it hands over to. Recomputed on every ScrollTrigger refresh (resize).
-   */
   const fitMini = () => {
     if (miniScaler) gsap.set(miniScaler, { scale: 1 / endScale() });
   };
   fitMini();
   ScrollTrigger.addEventListener("refresh", fitMini);
 
-  /* ---- Parking + entrance + idle bob -------------------------------- */
+  /* ---- Parking + entrance (no idle bob) ----------------------------- */
 
-  const first = LAPTOP_POSES[sections[0].id];
+  const first = LAPTOP_POSES[sceneIds[0]];
   gsap.set(rig, {
     xPercent: -50,
     yPercent: -50,
-    transformPerspective: 1400,
     autoAlpha: 1,
     ...poseVars(first),
   });
+  laptopController.setRotationY(first.rotationY);
+  laptopController.setScreen("hero", "hero", 0);
 
-  // Idle bob is ticker-driven from an amplitude proxy so the dive can
-  // damp it deterministically under scrub (a plain yoyo tween can't be).
-  const bob = { amp: 0 };
-  let bobTick: (() => void) | null = null;
-  const startBob = () => {
-    if (bobTick) return;
-    gsap.to(bob, { amp: 14, duration: 1.6, ease: "power1.inOut" });
-    bobTick = () => {
-      gsap.set(float, {
-        y: bob.amp * Math.sin(gsap.ticker.time * 2.2),
-      });
-    };
-    gsap.ticker.add(bobTick);
-  };
-
-  // The scrub-video hero owns the viewport at load, so the rig stays
-  // out of frame until the first posed section (About) scrolls into
-  // reach - and bows back out if the visitor returns to the film.
   gsap.fromTo(
     entrance,
     { autoAlpha: 0, y: 90 },
@@ -166,53 +166,118 @@ export function buildLaptopFlight(stage: HTMLElement): (() => void) | void {
         start: "top 80%",
         toggleActions: "play none none reverse",
       },
-      onComplete: startBob,
-    }
+    },
   );
 
-  /* ---- Splash → first scene hand-off -------------------------------- */
+  /* ---- Screen + swivel: pure function of scroll position ------------ */
 
-  // The laptop enters showing the KOPAL splash (the SVG's default
-  // [data-screen="hero"], the only scene that starts visible). Nothing
-  // ever turned that splash back off, so every later scene faded in *on
-  // top* of it - the KOPAL logo showed through under each new icon.
-  // Crossfade the splash out as the rig settles at the first posed
-  // section so the scenes replace it instead of stacking over it.
-  const heroScreen = screenOf("hero");
-  const firstScreen = screenOf(sections[0].id);
-  if (heroScreen && firstScreen) {
-    const intro = gsap.timeline({
-      scrollTrigger: {
-        trigger: sections[0],
-        start: "top 55%",
-        end: "top 20%",
-        scrub: 1,
-        invalidateOnRefresh: true,
-      },
+  // Contiguous segments over the flight. Each segment glides fromId→toId
+  // between two scroll positions; between segments the laptop is settled
+  // showing the segment's toId. Bounds are cached and refreshed on resize.
+  type Segment = {
+    fromId: SceneId;
+    toId: SceneId;
+    fromPose: LaptopPose;
+    toPose: LaptopPose;
+    start: number;
+    end: number;
+  };
+  let segments: Segment[] = [];
+
+  const scrollTopOf = (el: HTMLElement) =>
+    el.getBoundingClientRect().top + window.scrollY;
+
+  const buildSegments = () => {
+    const vh = window.innerHeight;
+    const aboutPose = LAPTOP_POSES[sceneIds[0]];
+    const segs: Segment[] = [];
+
+    // seg 0: splash hero → first posed scene (about), tied to the entrance.
+    const aboutTop = scrollTopOf(sections[0]);
+    segs.push({
+      fromId: "hero",
+      toId: sceneIds[0],
+      fromPose: aboutPose,
+      toPose: aboutPose,
+      start: aboutTop - vh * 0.8,
+      end: aboutTop - vh * 0.2,
     });
-    intro
-      .fromTo(
-        heroScreen,
-        { autoAlpha: 1 },
-        { autoAlpha: 0, duration: 0.4, immediateRender: false },
-        0
-      )
-      .fromTo(
-        firstScreen,
-        { autoAlpha: 0 },
-        { autoAlpha: 1, duration: 0.4, immediateRender: false },
-        0.3
-      );
-  }
 
-  /* ---- Pose-to-pose glides ------------------------------------------ */
+    // seg i: pose glides, matching each pose timeline's scroll window
+    // (start "top bottom" → end "top 32%").
+    for (let i = 1; i < sections.length; i++) {
+      const top = scrollTopOf(sections[i]);
+      segs.push({
+        fromId: sceneIds[i - 1],
+        toId: sceneIds[i],
+        fromPose: LAPTOP_POSES[sceneIds[i - 1]],
+        toPose: LAPTOP_POSES[sceneIds[i]],
+        start: top - vh,
+        end: top - vh * 0.32,
+      });
+    }
+    segments = segs;
+  };
+
+  const driveScreen = () => {
+    if (!segments.length) return;
+    const y = window.scrollY;
+
+    // Before the flight begins: hold the splash.
+    if (y < segments[0].start) {
+      laptopController.setScreen("hero", "hero", 0);
+      laptopController.setRotationY(segments[0].toPose.rotationY);
+      return;
+    }
+
+    for (const seg of segments) {
+      if (y < seg.start) {
+        // Settled between segments — show this segment's start scene/pose.
+        laptopController.setScreen(seg.fromId, seg.fromId, 0);
+        laptopController.setRotationY(seg.fromPose.rotationY);
+        return;
+      }
+      if (y < seg.end) {
+        const p = clamp01((y - seg.start) / (seg.end - seg.start));
+        // Screen crossfades over the middle of the glide (matches old timing).
+        const t = clamp01((p - 0.2) / 0.5);
+        laptopController.setScreen(seg.fromId, seg.toId, t);
+        // Swivel eases across the whole glide, in lockstep with position.
+        const e = easeInOut(p);
+        laptopController.setRotationY(
+          seg.fromPose.rotationY +
+            (seg.toPose.rotationY - seg.fromPose.rotationY) * e,
+        );
+        return;
+      }
+    }
+
+    // Past the last segment: settled at the final (zoom) scene/pose.
+    const last = segments[segments.length - 1];
+    laptopController.setScreen(last.toId, last.toId, 0);
+    laptopController.setRotationY(last.toPose.rotationY);
+  };
+
+  buildSegments();
+  driveScreen();
+
+  const screenDriver = ScrollTrigger.create({
+    trigger: document.body,
+    start: "top top",
+    end: "bottom bottom",
+    onUpdate: driveScreen,
+    onRefresh: () => {
+      buildSegments();
+      driveScreen();
+    },
+  });
+
+  /* ---- Pose-to-pose glides (position / 2D tilt / scale) ------------- */
 
   sections.forEach((section, i) => {
     if (i === 0) return;
-    const prevId = sections[i - 1].id;
-    const currId = section.id;
-    const prev = LAPTOP_POSES[prevId];
-    const curr = LAPTOP_POSES[currId];
+    const prev = LAPTOP_POSES[sceneIds[i - 1]];
+    const curr = LAPTOP_POSES[sceneIds[i]];
     if (!prev || !curr) return;
 
     const tl = gsap.timeline({
@@ -234,45 +299,25 @@ export function buildLaptopFlight(stage: HTMLElement): (() => void) | void {
         duration: 1,
         immediateRender: false,
       },
-      0
+      0,
     );
 
-    // Crossfade the on-screen scene mid-flight.
-    const from = screenOf(prevId);
-    const to = screenOf(currId);
-    if (from && to) {
-      tl.fromTo(
-        from,
-        { autoAlpha: 1 },
-        { autoAlpha: 0, duration: 0.3, immediateRender: false },
-        0.1
-      ).fromTo(
-        to,
-        { autoAlpha: 0 },
-        { autoAlpha: 1, duration: 0.3, immediateRender: false },
-        0.62
-      );
-    }
-
-    // As the laptop descends toward the dive stage, reveal the live
-    // catalogue miniature so it is already playing when the plunge begins.
-    if (currId === "zoom" && mini) {
+    // Reveal the live catalogue miniature as the laptop reaches the dive.
+    if (sceneIds[i] === "zoom" && mini) {
       tl.fromTo(
         mini,
         { autoAlpha: 0 },
         { autoAlpha: 1, duration: 0.3, immediateRender: false },
-        0.62
+        0.62,
       );
     }
   });
 
-  /* ---- The dive ------------------------------------------------------ */
+  /* ---- The dive ----------------------------------------------------- */
 
   const zoomSection = document.getElementById("zoom");
   if (zoomSection) {
     const cue = zoomSection.querySelector("[data-zoom-cue]");
-    const frame = rig.querySelector("[data-screen-frame]");
-    const clipRect = rig.querySelector("[data-screen-clip]");
 
     const dive = gsap.timeline({
       scrollTrigger: {
@@ -286,8 +331,6 @@ export function buildLaptopFlight(stage: HTMLElement): (() => void) | void {
       },
     });
 
-    // Make the pin-spacer click-through so it does not block the
-    // catalogue section that slides up beneath it.
     const hardenPinSpacer = () => {
       const spacer = (dive.scrollTrigger as unknown as { spacer?: HTMLElement })
         ?.spacer;
@@ -298,37 +341,12 @@ export function buildLaptopFlight(stage: HTMLElement): (() => void) | void {
     removeSpacerHarden = () =>
       ScrollTrigger.removeEventListener("refresh", hardenPinSpacer);
 
-    // Settle: damp the idle bob so the plunge is rock-steady.
-    dive.fromTo(
-      bob,
-      { amp: 14 },
-      { amp: 0, duration: 0.1, ease: "none", immediateRender: false },
-      0
-    );
-
-    // Square off the display corners while still tiny.
-    if (frame) {
-      dive.fromTo(
-        frame,
-        { attr: { rx: 10 } },
-        { attr: { rx: 0 }, duration: 0.25, immediateRender: false },
-        0
-      );
-    }
-    if (clipRect) {
-      dive.fromTo(
-        clipRect,
-        { attr: { rx: 10 } },
-        { attr: { rx: 0 }, duration: 0.25, immediateRender: false },
-        0
-      );
-    }
     if (mini) {
       dive.fromTo(
         mini,
         { borderRadius: "6px" },
         { borderRadius: "0px", duration: 0.25, immediateRender: false },
-        0
+        0,
       );
     }
     if (cue) {
@@ -336,70 +354,54 @@ export function buildLaptopFlight(stage: HTMLElement): (() => void) | void {
         cue,
         { autoAlpha: 1 },
         { autoAlpha: 0, duration: 0.08, immediateRender: false },
-        0.02
+        0.02,
       );
     }
 
-    // The plunge - screen grows until it fills the viewport.
+    // The plunge — screen grows until it fills the viewport.
     dive.fromTo(
       rig,
-      {
-        x: 0,
-        y: 0,
-        scale: LAPTOP_POSES.zoom.scale,
-        rotation: 0,
-        rotationY: 0,
-      },
+      { x: 0, y: 0, scale: LAPTOP_POSES.zoom.scale, rotation: 0 },
       {
         x: 0,
         y: endY,
         scale: endScale,
         rotation: 0,
-        rotationY: 0,
         ease: "power2.in",
         duration: 0.94,
         immediateRender: false,
       },
-      0
+      0,
     );
 
-    // White stage steps aside, exposing the real catalogue beneath.
     dive.fromTo(
       zoomSection,
       { autoAlpha: 1 },
       { autoAlpha: 0, duration: 0.025, ease: "none", immediateRender: false },
-      0.945
+      0.945,
     );
 
-    // Rig dissolves. You're inside.
     dive.fromTo(
       rig,
       { autoAlpha: 1 },
       { autoAlpha: 0, duration: 0.015, ease: "none", immediateRender: false },
-      0.985
+      0.985,
     );
   }
 
-  /* ---- Footer failsafe ------------------------------------------------ */
-
-  const footer = document.getElementById("site-footer");
-  if (footer) {
-    gsap.to(rig, {
-      autoAlpha: 0,
-      immediateRender: false,
-      ease: "none",
-      scrollTrigger: {
-        trigger: footer,
-        start: "top 95%",
-        end: "top 55%",
-        scrub: 1,
-      },
-    });
-  }
+  // The dive owns the rig's post-dive visibility: it dissolves the rig to
+  // autoAlpha 0 as the screen fills the viewport (products showing through)
+  // and reverses cleanly on scroll-up. A separate footer failsafe only
+  // fought that state — leaving the laptop stuck hidden on a fast scroll-up,
+  // and its grown screen showing over the products page — so it is gone.
 
   return () => {
     ScrollTrigger.removeEventListener("refresh", fitMini);
+    ScrollTrigger.removeEventListener("refresh", applyScreenRect);
     removeSpacerHarden?.();
-    if (bobTick) gsap.ticker.remove(bobTick);
+    offReady();
+    cancelAnimationFrame(settleRaf);
+    window.removeEventListener("pageshow", onPageShow);
+    screenDriver.kill();
   };
 }

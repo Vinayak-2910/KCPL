@@ -36,7 +36,7 @@ export default async function LaptopsPage() {
       <main className="select-none pt-24">
         <div className="mx-auto w-full max-w-7xl px-5 pb-4 pt-10 sm:px-8">
           <Link
-            href="/products"
+            href="/#products"
             className="group inline-flex items-center gap-2 text-sm font-semibold text-slate-600 transition-colors hover:text-brand-700"
           >
             <span className="transition-transform group-hover:-translate-x-1">
