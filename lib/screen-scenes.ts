@@ -98,15 +98,25 @@ function text(
     align?: CanvasTextAlign;
   },
 ) {
+  const align = opts.align ?? "center";
+  const spacing = opts.spacing ?? 0;
   ctx.save();
   ctx.fillStyle = opts.fill;
-  ctx.textAlign = opts.align ?? "center";
+  ctx.textAlign = align;
   ctx.textBaseline = "alphabetic";
   ctx.font = `${opts.weight ?? 400} ${opts.size}px ${opts.family ?? FONT_SANS}`;
   // letterSpacing is supported in the browsers this app targets.
   (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing =
-    `${opts.spacing ?? 0}px`;
-  ctx.fillText(str, x, y);
+    `${spacing}px`;
+  // Browsers include the trailing letter-spacing gap in the measured width,
+  // so centred spaced text is biased left by half a gap. Nudge it back so
+  // headings like KOPAL / DELL / ASUS sit truly centred on the screen.
+  let drawX = x;
+  if (spacing) {
+    if (align === "center") drawX = x + spacing / 2;
+    else if (align === "right") drawX = x + spacing;
+  }
+  ctx.fillText(str, drawX, y);
   ctx.restore();
 }
 

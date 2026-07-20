@@ -37,6 +37,13 @@ const TEX_H = Math.round((TEX_W * SCREEN_VIEW.h) / SCREEN_VIEW.w);
 const SCREEN_INSET = 0.86;
 /** Fraction of canvas height the laptop should fill. */
 const FIT = 0.9;
+/**
+ * Fine-tune where the screen content sits, as a fraction of the display
+ * size. Positive X nudges content right, positive Y nudges it down. If the
+ * content still sits slightly off on the screen, bump these ~0.01 at a time.
+ */
+const SCREEN_OFFSET_X = 0;
+const SCREEN_OFFSET_Y = 0;
 
 export default function LaptopCanvas({
   className = "",
@@ -113,6 +120,9 @@ export default function LaptopCanvas({
     let screenRect: LaptopScreenRect | null = null;
     let screenPlane: THREE.Mesh | null = null;
     let targetRotationY = 0;
+    // While > now, swivel updates snap instead of easing (used briefly
+    // around (re)load so the laptop shows its real angle immediately).
+    let snapUntil = 0;
 
     // --- load the model -------------------------------------------------
     const loader = new GLTFLoader();
@@ -176,7 +186,11 @@ export default function LaptopCanvas({
           toneMapped: false,
         });
         screenPlane = new THREE.Mesh(planeGeo, planeMat);
-        screenPlane.position.set(planeCx, planeCy, planeZ);
+        screenPlane.position.set(
+          planeCx + planeW * SCREEN_OFFSET_X,
+          planeCy + planeH * SCREEN_OFFSET_Y,
+          planeZ,
+        );
         pivot.add(screenPlane);
 
         paintScreen();
@@ -184,7 +198,11 @@ export default function LaptopCanvas({
         invalidate();
         // Tell the flight the model is measured so it can re-align to the
         // real 3D screen rect (first load and every navigation back).
+        // Open a short window so the swivel the flight sets (synchronously,
+        // via onReady) snaps to the current pose rather than animating in.
+        snapUntil = performance.now() + 400;
         laptopController.markReady();
+        pivot.rotation.y = targetRotationY;
         // Custom fonts may still be loading on a cold visit; repaint the
         // screen once they're ready so text metrics are correct.
         if (typeof document !== "undefined" && document.fonts?.ready) {
@@ -279,6 +297,10 @@ export default function LaptopCanvas({
     const unregister = laptopController.register({
       setRotationY: (deg) => {
         targetRotationY = (deg * Math.PI) / 180;
+        // Snap straight to the flight's pose during the load window so the
+        // screen appears at its real alignment instead of swivelling in from
+        // a centred/straight-on position; ease normally afterwards.
+        if (performance.now() < snapUntil) pivot.rotation.y = targetRotationY;
         invalidate();
       },
       setScreen: (state) => {

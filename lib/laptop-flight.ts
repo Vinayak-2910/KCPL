@@ -34,12 +34,12 @@ export type LaptopPose = {
 };
 
 export const LAPTOP_POSES: Record<string, LaptopPose> = {
-  about: { xvw: -27, yvh: 2, rotation: 5, rotationY: 18, scale: 0.88 },
+  about: { xvw: -27, yvh: 2, rotation: 5, rotationY: 0, scale: 0.88 },
   stats: { xvw: 0, yvh: -27, rotation: 0, rotationY: 0, scale: 0.6 },
-  partners: { xvw: 26, yvh: 0, rotation: 4, rotationY: -14, scale: 0.92 },
-  solutions: { xvw: -26, yvh: 2, rotation: -5, rotationY: 16, scale: 0.9 },
-  process: { xvw: 25, yvh: 6, rotation: 8, rotationY: -12, scale: 0.8 },
-  "why-us": { xvw: -25, yvh: 0, rotation: -4, rotationY: 14, scale: 0.95 },
+  partners: { xvw: 26, yvh: 0, rotation: 4, rotationY: 0, scale: 0.92 },
+  solutions: { xvw: -26, yvh: 2, rotation: -5, rotationY: 0, scale: 0.9 },
+  process: { xvw: 25, yvh: 6, rotation: 8, rotationY: 0, scale: 0.8 },
+  "why-us": { xvw: -25, yvh: 0, rotation: -4, rotationY: 0, scale: 0.95 },
   cta: { xvw: 0, yvh: -24, rotation: 0, rotationY: 0, scale: 0.66 },
   zoom: { xvw: 0, yvh: 0, rotation: 0, rotationY: 0, scale: 1.3 },
 };
